@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Deteksi bahasa daerah Indonesia dengan machine learning: Jawa, Sunda, Minang, Batak, Bugis, Bali, Madura, Banjar.">
+  <title>Detektor Bahasa Daerah — AI NLP</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="aura aura-1" aria-hidden="true"></div>
+  <div class="aura aura-2" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="hero">
+      <div class="hero-top">
+        <span class="badge"><span class="pulse"></span> AI · NLP · Bahasa Nusantara</span>
+        {% if info.siap %}
+          <span class="status ok">Model siap</span>
+        {% else %}
+          <span class="status warn">Model belum dilatih</span>
+        {% endif %}
+      </div>
+      <h1>Deteksi <span class="grad">Bahasa Daerah</span></h1>
+      <p class="lead">
+        Tempel sebuah kalimat, lalu model akan menebak bahasa daerahnya beserta
+        tingkat keyakinan dan kata-kata yang menjadi pemicu prediksi.
+      </p>
+    </header>
+
+    <section class="layout">
+      <article class="panel input-panel">
+        <div class="panel-head">
+          <h2>Masukkan teks</h2>
+          <span class="hint">maks. 5.000 karakter</span>
+        </div>
+
+        <label class="sr-only" for="teks">Teks yang akan dideteksi</label>
+        <textarea id="teks" maxlength="5000" spellcheck="false"
+          placeholder="Contoh: Aku arep menyang pasar tuku sayur kanggo masak sesuk."></textarea>
+
+        <div class="under-text">
+          <span id="hitung">0 / 5.000</span>
+          <button type="button" id="bersihkan" class="text-btn">Bersihkan</button>
+        </div>
+
+        <div class="mic-row">
+          <button type="button" id="mic" class="btn mic" aria-pressed="false">
+            <span class="mic-icon" aria-hidden="true">🎙</span>
+            <span class="mic-label">Rekam suara</span>
+          </button>
+          <label class="mic-lang">
+            <span class="sr-only">Bahasa yang diucapkan</span>
+            <select id="mic-bahasa">
+              <option value="id-ID">Indonesia</option>
+              <option value="jv-ID">Jawa</option>
+              <option value="su-ID">Sunda</option>
+              <option value="min-ID">Minang</option>
+              <option value="bbc-ID">Batak</option>
+              <option value="ban-ID">Bali</option>
+              <option value="mad-ID">Madura</option>
+              <option value="bug-ID">Bugis</option>
+              <option value="bjn-ID">Banjar</option>
+            </select>
+          </label>
+          <p id="mic-status" class="mic-status" aria-live="polite">
+            Ucapkan kalimat, lalu klik lagi untuk berhenti.
+          </p>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="deteksi" class="btn primary">
+            <span class="spinner" hidden aria-hidden="true"></span>
+            <span class="btn-label">Deteksi Bahasa</span>
+          </button>
+          <button type="button" id="acak" class="btn ghost">Coba contoh</button>
+        </div>
+
+        <div class="examples">
+          <p>Contoh cepat</p>
+          <div id="contoh-list" class="chips"></div>
+        </div>
+
+        {% if not info.siap %}
+          <div class="notice warn-box">
+            Model belum tersedia. Jalankan <code>python train.py</code> terlebih dahulu,
+            lalu muat ulang halaman ini.
+          </div>
+        {% endif %}
+      </article>
+
+      <article class="panel result-panel" aria-live="polite">
+        <div id="kosong" class="empty">
+          <div class="empty-icon" aria-hidden="true">◎</div>
+          <h2>Hasil deteksi</h2>
+          <p>Hasil akan muncul di sini setelah kamu menekan tombol deteksi.</p>
+        </div>
+
+        <div id="isi" hidden>
+          <div class="result-top">
+            <div>
+              <p class="eyebrow">Bahasa terdeteksi</p>
+              <h2 id="bahasa">-</h2>
+              <p id="wilayah" class="region">-</p>
+            </div>
+            <div class="score-ring" id="ring">
+              <span id="keyakinan">0%</span>
+              <small>keyakinan</small>
+            </div>
+          </div>
+
+          <div class="bar-wrap">
+            <div class="bar"><span id="bar-utama"></span></div>
+          </div>
+
+          <div id="peringatan" class="notice warn-box" hidden></div>
+
+          <div class="section-title">
+            <h3>Kemungkinan lain</h3>
+            <span>skor model</span>
+          </div>
+          <ul id="top-lain" class="top-list"></ul>
+
+          <div class="section-title">
+            <h3>Kata kunci</h3>
+            <span>pemicu prediksi</span>
+          </div>
+          <div id="kata-kunci" class="chips keywords"></div>
+
+          <div class="section-title">
+            <h3>Terjemahan</h3>
+            <span>ke bahasa Indonesia</span>
+          </div>
+          <div class="translate-box">
+            <div class="translate-controls">
+              <button type="button" id="terjemahkan" class="btn translate-btn">
+                <span class="spinner" hidden aria-hidden="true"></span>
+                <span class="btn-label">Terjemahkan ke Indonesia</span>
+              </button>
+              <label class="toggle">
+                <input type="checkbox" id="online" {% if terjemahan_online %}checked{% endif %}>
+                <span>Online (Google)</span>
+              </label>
+            </div>
+            <p class="translate-note">
+              Mode online mengirim teks ke Google Translate. Matikan untuk memakai
+              korpus paralel dan kamus lokal.
+            </p>
+            <div id="terjemahan-hasil" class="translate-result" hidden>
+              <p id="terjemahan-teks" class="translate-text"></p>
+              <div class="translate-meta">
+                <span id="terjemahan-metode" class="method-badge"></span>
+                <span id="terjemahan-catatan" class="translate-catatan"></span>
+              </div>
+            </div>
+            <div id="terjemahan-error" class="notice error" hidden></div>
+          </div>
+        </div>
+
+        <div id="error" class="notice error" hidden></div>
+      </article>
+    </section>
+
+    <section class="stats" aria-label="Informasi model">
+      <div class="stat">
+        <span>Akurasi CV</span>
+        <strong>
+          {% if info.akurasi_cv is not none %}{{ "%.1f"|format(info.akurasi_cv * 100) }}%{% else %}—{% endif %}
+        </strong>
+        <small>validasi silang 5 lipat</small>
+      </div>
+      <div class="stat">
+        <span>Akurasi uji</span>
+        <strong>
+          {% if info.akurasi_holdout is not none %}{{ "%.1f"|format(info.akurasi_holdout * 100) }}%{% else %}—{% endif %}
+        </strong>
+        <small>hold-out 20% per grup</small>
+      </div>
+      <div class="stat">
+        <span>Data korpus</span>
+        <strong>{{ "{:,}".format(info.n_data).replace(",", ".") if info.n_data else "—" }}</strong>
+        <small>kalimat berlabel</small>
+      </div>
+      <div class="stat">
+        <span>Bahasa</span>
+        <strong>{{ info.jumlah_kelas if info.jumlah_kelas else "—" }}</strong>
+        <small>Jawa s.d. Indonesia</small>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>
+        Model: <strong>{{ info.nama_model }}</strong>.
+        Hasil bersifat probabilistik — gunakan sebagai alat bantu, bukan keputusan final.
+      </p>
+      <p class="muted">Dibuat dengan Python, scikit-learn, dan Flask.</p>
+    </footer>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
